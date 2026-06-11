@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header Section with Export Actions -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-base-100 p-6 rounded-2xl border border-base-300 shadow-sm">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">Explorador de Oferta Académica</h2>
+            <p class="text-sm text-slate-500">Busca, filtra y exporta las carreras universitarias identificadas.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <!-- Dynamic Export Links containing current filters -->
+            <a href="/export/excel?degree_type={{ selected_degree }}&academic_area={{ selected_area }}&search={{ search_query }}" class="btn btn-outline btn-sm rounded-xl">
+                <i class="fa-solid fa-file-excel text-emerald-600 mr-1"></i> Exportar Excel
+            </a>
+            <a href="/export/pdf?degree_type={{ selected_degree }}&academic_area={{ selected_area }}&search={{ search_query }}" class="btn btn-outline btn-sm rounded-xl">
+                <i class="fa-solid fa-file-pdf text-rose-600 mr-1"></i> Exportar PDF
+            </a>
+            <a href="/export/db" class="btn btn-primary btn-sm rounded-xl text-white">
+                <i class="fa-solid fa-download mr-1"></i> Descargar Base Gold (delivery.db)
+            </a>
+        </div>
+    </div>
+
+    <!-- Explorer Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+        
+        <!-- Interactive Filter Sidebar Form -->
+        <div class="card bg-base-100 shadow-sm border border-base-300 rounded-2xl lg:col-span-1">
+            <div class="card-body p-6">
+                <h3 class="card-title text-base font-bold text-slate-800 border-b border-base-200 pb-3 mb-2">
+                    <i class="fa-solid fa-filter text-slate-600 mr-1"></i> Filtros
+                </h3>
+                
+                <form method="GET" action="/explore" class="space-y-4">
+                    <!-- Text Search Input -->
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold text-slate-600">Búsqueda rápida</span></label>
+                        <div class="relative w-full">
+                            <input type="text" name="search" placeholder="Ej. Computación, Médico..." value="{{ search_query }}" class="input input-bordered w-full pr-10 rounded-xl" />
+                            <button type="submit" class="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Degree Type Filter -->
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold text-slate-600">Tipo de Grado</span></label>
+                        <select name="degree_type" class="select select-bordered w-full rounded-xl">
+                            <option value="">-- Todos --</option>
+                            {% for degree in degree_options %}
+                                <option value="{{ degree }}" {% if selected_degree == degree %}selected{% endif %}>{{ degree }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Academic Area Filter -->
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold text-slate-600">Área Académica</span></label>
+                        <select name="academic_area" class="select select-bordered w-full rounded-xl">
+                            <option value="">-- Todas --</option>
+                            {% for area in area_options %}
+                                <option value="{{ area }}" {% if selected_area == area %}selected{% endif %}>{{ area }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Apply & Reset Buttons -->
+                    <div class="pt-2 space-y-2">
+                        <button type="submit" class="btn btn-primary w-full rounded-xl text-white">
+                            Filtrar Resultados
+                        </button>
+                        <a href="/explore" class="btn btn-ghost w-full rounded-xl text-slate-600 border border-base-300">
+                            Restablecer Filtros
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Career Data Table -->
+        <div class="card bg-base-100 shadow-sm border border-base-300 rounded-2xl lg:col-span-3 overflow-hidden">
+            <div class="card-body p-0">
+                
+                <div class="overflow-x-auto w-full">
+                    <table class="table table-md w-full">
+                        <thead>
+                            <tr class="bg-base-100 border-b border-base-300 text-slate-600">
+                                <th>Carrera / Título</th>
+                                <th>Grado Académico</th>
+                                <th>Área o Facultad</th>
+                                <th>Descripción</th>
+                                <th class="text-right">Detalles</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-base-200">
+                            {% if not careers %}
+                            <tr>
+                                <td colspan="5" class="py-12 text-center">
+                                    <div class="flex flex-col items-center justify-center space-y-3">
+                                        <div class="bg-slate-50 text-slate-400 p-4 rounded-full">
+                                            <i class="fa-solid fa-folder-open text-3xl"></i>
+                                        </div>
+                                        <h4 class="font-bold text-slate-800">No se encontraron resultados</h4>
+                                        <p class="text-xs text-slate-500 max-w-xs">Intenta modificando los términos de búsqueda o los filtros del menú izquierdo.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                                {% for career in careers %}
+                                <tr class="hover:bg-slate-50/50 transition-colors duration-150">
+                                    <td class="font-semibold text-slate-800">
+                                        <div class="max-w-[200px] truncate" title="{{ career.title }}">
+                                            {{ career.title }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-sm rounded-lg font-medium py-2 px-2.5
+                                            {% if career.degree_type == 'Ingeniería' %}badge-primary text-white
+                                            {% elif career.degree_type == 'Licenciatura' %}badge-secondary text-white
+                                            {% elif career.degree_type == 'Maestría' %}badge-accent text-accent-content
+                                            {% elif career.degree_type == 'Técnico' %}badge-info text-info-content
+                                            {% else %}badge-ghost{% endif %}">
+                                            {{ career.degree_type }}
+                                        </span>
+                                    </td>
+                                    <td class="text-slate-600 text-xs font-medium">{{ career.academic_area }}</td>
+                                    <td class="text-slate-500 text-xs">
+                                        <div class="max-w-[300px] truncate">
+                                            {{ career.description }}
+                                        </div>
+                                    </td>
+                                    <td class="text-right">
+                                        <button 
+                                            onclick="openCareerModal({{ career.title|tojson }}, {{ career.degree_type|tojson }}, {{ career.academic_area|tojson }}, {{ career.url|tojson }}, {{ career.description|tojson }})"
+                                            class="btn btn-ghost btn-square btn-sm text-slate-600 hover:bg-slate-100 rounded-lg">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer Summary info -->
+                <div class="bg-base-50 px-6 py-4 border-t border-base-200 flex items-center justify-between">
+                    <span class="text-xs text-slate-500 font-medium">
+                        Mostrando <span class="text-slate-800 font-bold">{{ careers|length }}</span> programas académicos filtrados.
+                    </span>
+                    <span class="text-xs text-slate-400">
+                        Medallion Gold Delivery Stage
+                    </span>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal Dialog Component for full details view (daisyUI modal) -->
+<dialog id="career_details_modal" class="modal">
+  <div class="modal-box max-w-2xl rounded-2xl p-6">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-4 top-4">✕</button>
+    </form>
+    
+    <div class="flex items-start gap-3 border-b border-base-200 pb-4 mb-4">
+        <div class="bg-slate-100 text-slate-700 p-3 rounded-xl">
+            <i class="fa-solid fa-graduation-cap text-xl"></i>
+        </div>
+        <div>
+            <h3 id="modal-title" class="font-extrabold text-lg text-slate-800">Nombre de la Carrera</h3>
+            <div class="flex flex-wrap gap-2 mt-1.5">
+                <span id="modal-degree" class="badge badge-sm badge-neutral rounded-lg font-semibold px-2 py-2 text-[10px]">Grado</span>
+                <span id="modal-area" class="badge badge-sm badge-ghost rounded-lg font-semibold px-2 py-2 text-[10px]">Área Académica</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="space-y-4">
+        <div>
+            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Descripción Detallada</h4>
+            <p id="modal-desc" class="text-slate-600 text-sm leading-relaxed max-h-[300px] overflow-y-auto pr-2">
+                Cargando descripción...
+            </p>
+        </div>
+        
+        <div class="bg-slate-50 p-4 rounded-xl border border-base-300">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Enlace del Portal Universitario</span>
+            <a id="modal-url" href="#" target="_blank" class="text-xs font-mono text-blue-600 hover:underline flex items-center gap-1.5 truncate">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> <span id="modal-url-text">url</span>
+            </a>
+        </div>
+    </div>
+    
+    <div class="modal-action mt-6 pt-4 border-t border-base-200">
+      <form method="dialog">
+        <button class="btn btn-ghost rounded-xl">Cerrar</button>
+      </form>
+    </div>
+  </div>
+</dialog>
+
+<script>
+    // Safe modal content population and open
+    function openCareerModal(title, degree, area, url, description) {
+        document.getElementById("modal-title").textContent = title;
+        document.getElementById("modal-degree").textContent = degree;
+        document.getElementById("modal-area").textContent = area;
+        document.getElementById("modal-desc").textContent = description;
+        
+        const urlElem = document.getElementById("modal-url");
+        urlElem.href = url;
+        document.getElementById("modal-url-text").textContent = url;
+        
+        // Show modal
+        document.getElementById("career_details_modal").showModal();
+    }
+</script>
+{% endblock %}

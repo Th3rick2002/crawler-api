@@ -1,0 +1,539 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-base-100 p-6 rounded-2xl border border-base-300 shadow-sm">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800">Panel de Control de Analítica</h2>
+            <p class="text-sm text-slate-500">Supervisa la extracción, analiza la oferta académica e infiere tendencias académicas en tiempo real.</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="clearAllData()" class="btn btn-outline btn-sm rounded-xl hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300">
+                <i class="fa-solid fa-trash-can mr-1"></i> Limpiar Datos
+            </button>
+            <button onclick="runPipeline()" class="btn btn-outline btn-sm rounded-xl">
+                <i class="fa-solid fa-rotate mr-1"></i> Forzar Pipeline Analítico
+            </button>
+            <a href="/explore" class="btn btn-primary btn-sm rounded-xl text-white">
+                <i class="fa-solid fa-magnifying-glass mr-1"></i> Explorar Carreras
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Metrics Cards (daisyUI stats) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Pages Crawled Card -->
+        <div class="card bg-base-100 shadow-sm border border-base-300 rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-200">
+            <div class="card-body p-6 flex flex-row items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Páginas Web Ingeridas</span>
+                    <h3 id="stat-crawled" class="text-3xl font-extrabold text-slate-800 mt-1">{{ metrics.total_pages_crawled }}</h3>
+                    <p class="text-[11px] text-slate-400 mt-1">Copiadas en el archivo Bronze</p>
+                </div>
+                <div class="bg-blue-50 text-blue-600 p-4 rounded-2xl">
+                    <i class="fa-solid fa-globe text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Careers Found Card -->
+        <div class="card bg-base-100 shadow-sm border border-base-300 rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-200">
+            <div class="card-body p-6 flex flex-row items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Carreras Identificadas</span>
+                    <h3 id="stat-careers" class="text-3xl font-extrabold text-indigo-600 mt-1">{{ metrics.careers_found }}</h3>
+                    <p class="text-[11px] text-slate-400 mt-1">Estructuradas en la base Gold</p>
+                </div>
+                <div class="bg-indigo-50 text-indigo-600 p-4 rounded-2xl">
+                    <i class="fa-solid fa-graduation-cap text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Errors Intercepted Card -->
+        <div class="card bg-base-100 shadow-sm border border-base-300 rounded-2xl overflow-hidden hover:shadow-md transition-shadow duration-200">
+            <div class="card-body p-6 flex flex-row items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Errores Interceptados</span>
+                    <h3 id="stat-errors" class="text-3xl font-extrabold text-rose-600 mt-1">{{ metrics.errors_intercepted }}</h3>
+                    <p class="text-[11px] text-slate-400 mt-1">Fallas de red, 404, timeouts, etc.</p>
+                </div>
+                <div class="bg-rose-50 text-rose-600 p-4 rounded-2xl">
+                    <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crawler Control & Live Status Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Crawler Controller Widget -->
+        <div class="card bg-base-100 shadow-sm border border-base-300 rounded-2xl lg:col-span-1">
+            <div class="card-body p-6">
+                <h3 class="card-title text-base font-bold text-slate-800 border-b border-base-200 pb-3">
+                    <i class="fa-solid fa-robot text-indigo-600 mr-1"></i> Control del Rastreador
+                </h3>
+                
+                <!-- Start Form -->
+                <div id="crawler-setup-form" class="space-y-4 mt-3 {% if crawler_status.is_running %}hidden{% endif %}">
+                    <div class="form-control">
+                        <label class="label"><span class="label-text font-semibold text-slate-600">Lista de URLs Semilla</span></label>
+                        <textarea id="crawler-seed" placeholder="https://ejemplo1.edu/carreras&#10;https://ejemplo2.edu/carreras" class="textarea textarea-bordered w-full rounded-xl h-24" required>https://example.edu/carreras</textarea>
+                        <span class="text-[10px] text-slate-400 mt-1">Ingresa una o varias URLs (separadas por comas o saltos de línea). Se rastrearán recursivamente dentro de sus dominios.</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-control">
+                            <label class="label"><span class="label-text font-semibold text-slate-600">Máx. Páginas</span></label>
+                            <input id="crawler-max-pages" type="number" value="30" min="5" max="200" class="input input-bordered w-full rounded-xl" />
+                        </div>
+                        <div class="form-control">
+                            <label class="label"><span class="label-text font-semibold text-slate-600">Profundidad BFS</span></label>
+                            <input id="crawler-max-depth" type="number" value="2" min="1" max="5" class="input input-bordered w-full rounded-xl" />
+                        </div>
+                    </div>
+
+                    <button onclick="startCrawler()" class="btn btn-primary w-full rounded-xl text-white mt-2">
+                        <i class="fa-solid fa-play mr-1"></i> Iniciar Rastro de URL
+                    </button>
+                </div>
+
+                <!-- Active Crawler Status -->
+                <div id="crawler-active-widget" class="space-y-4 mt-3 {% if not crawler_status.is_running %}hidden{% endif %}">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-3 w-3">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-600"></span>
+                            </span>
+                            <span class="font-bold text-sm text-indigo-600">Extrayendo información...</span>
+                        </div>
+                        <button onclick="stopCrawler()" class="btn btn-error btn-xs btn-outline rounded-lg">
+                            <i class="fa-solid fa-stop"></i> Detener
+                        </button>
+                    </div>
+
+                    <!-- Progress Stats -->
+                    <div class="bg-base-200 p-4 rounded-xl space-y-2.5">
+                        <div class="flex justify-between text-xs text-slate-600">
+                            <span>Ingeridos (Bronze):</span>
+                            <span id="active-pages" class="font-bold font-mono">0</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-slate-600">
+                            <span>Fallas de Red:</span>
+                            <span id="active-failed" class="font-bold font-mono text-rose-600">0</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-slate-600">
+                            <span>URL actual:</span>
+                        </div>
+                        <div id="active-url" class="text-[10px] text-slate-500 font-mono truncate bg-base-100 p-1.5 rounded border border-base-300 max-w-full">
+                            Cargando...
+                        </div>
+                    </div>
+
+                    <div class="form-control">
+                        <progress class="progress progress-primary w-full" id="active-progress"></progress>
+                        <p id="active-msg" class="text-[11px] text-slate-400 text-center mt-2 italic">Respetando politeness delay (1.5s - 3.5s)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Crawler Status Messages -->
+        <div class="card bg-base-100 text-slate-700 shadow-sm border border-base-300 rounded-2xl lg:col-span-2">
+            <div class="card-body p-6 flex flex-col justify-between h-[350px]">
+                <h3 class="card-title text-base font-bold text-slate-800 border-b border-base-200 pb-3 flex justify-between">
+                    <span><i class="fa-solid fa-terminal text-slate-600 mr-1"></i> Bitácora de Consola</span>
+                    <span id="log-time" class="text-xs font-mono font-normal text-slate-500"></span>
+                </h3>
+                
+                <div id="console-logs" class="flex-1 font-mono text-xs overflow-y-auto mt-3 space-y-1.5 pr-2">
+                    <p class="text-slate-400">// Consola iniciada. Presiona 'Iniciar Rastro' para ejecutar el BFS.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Academic Areas Chart -->
+        <div class="card bg-base-100 shadow-sm border border-base-300 rounded-2xl lg:col-span-2">
+            <div class="card-body p-6">
+                <h3 class="card-title text-base font-bold text-slate-800 border-b border-base-200 pb-3">
+                    <i class="fa-solid fa-chart-simple text-indigo-600 mr-1"></i> Áreas Académicas / Facultades
+                </h3>
+                <div class="mt-4 h-[300px] flex items-center justify-center relative">
+                    <canvas id="areaChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Degree Type Distributions -->
+        <div class="card bg-base-100 shadow-sm border border-base-300 rounded-2xl lg:col-span-1">
+            <div class="card-body p-6">
+                <h3 class="card-title text-base font-bold text-slate-800 border-b border-base-200 pb-3">
+                    <i class="fa-solid fa-chart-pie text-indigo-600 mr-1"></i> Tipos de Títulos
+                </h3>
+                <div class="mt-4 h-[300px] flex items-center justify-center relative">
+                    <canvas id="degreeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NLP Word Clouds Section -->
+    <div class="grid grid-cols-1 gap-6">
+        <div class="card bg-base-100 shadow-sm border border-base-300 rounded-2xl">
+            <div class="card-body p-6">
+                <h3 class="card-title text-base font-bold text-slate-800 border-b border-base-200 pb-3">
+                    <i class="fa-solid fa-language text-indigo-600 mr-1"></i> Minería de Texto: Palabras Clave más Frecuentes
+                </h3>
+                <p class="text-xs text-slate-500 mt-1">Frecuencia de términos significativos descartando conectores, verbos comunes y stopwords en español.</p>
+                <div class="mt-4 h-[250px] flex items-center justify-center relative">
+                    <canvas id="wordChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Reports & Logs (Collapsible) -->
+    <div class="collapse collapse-arrow bg-base-100 border border-base-300 shadow-sm rounded-2xl">
+        <input type="checkbox" /> 
+        <div class="collapse-title text-base font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation text-rose-500"></i> Registro de Errores Interceptados
+            <span class="badge badge-sm badge-ghost" id="error-badge-count">0</span>
+        </div>
+        <div class="collapse-content px-6 pb-6">
+            <div class="overflow-x-auto w-full max-h-[300px]">
+                <table class="table table-xs w-full" id="error-table">
+                    <thead>
+                        <tr class="bg-base-200 text-slate-600">
+                            <th>Intentado el</th>
+                            <th>Enlace URL Fallido</th>
+                            <th>Mensaje de Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="3" class="text-center text-slate-400 py-4">No se registran errores en las bases de datos.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Interactive Javascript for Chart rendering, control & Polling -->
+<script>
+    let areaChart = null;
+    let degreeChart = null;
+    let wordChart = null;
+    let isPolling = false;
+    let pollInterval = null;
+    let lastPagesCrawled = -1;
+
+    // Load metrics and draw charts on document ready
+    document.addEventListener("DOMContentLoaded", () => {
+        refreshDashboard();
+        checkCrawlerStatus();
+        // Setup initial poll
+        pollInterval = setInterval(checkCrawlerStatus, 2000);
+    });
+
+    async function refreshDashboard() {
+        // Fetch stats
+        try {
+            const res = await fetch("/api/metrics");
+            const metrics = await res.json();
+            document.getElementById("stat-crawled").textContent = metrics.total_pages_crawled;
+            document.getElementById("stat-careers").textContent = metrics.careers_found;
+            document.getElementById("stat-errors").textContent = metrics.errors_intercepted;
+        } catch (e) {
+            console.error("Error loading metrics:", e);
+        }
+
+        // Fetch charts
+        try {
+            const res = await fetch("/api/charts");
+            const data = await res.json();
+            renderCharts(data);
+        } catch (e) {
+            console.error("Error loading charts:", e);
+        }
+
+        // Fetch failures
+        try {
+            const res = await fetch("/api/errors");
+            const errors = await res.json();
+            renderErrors(errors);
+        } catch (e) {
+            console.error("Error loading errors:", e);
+        }
+    }
+
+    function renderCharts(data) {
+        // 1. Area Chart
+        const areaCtx = document.getElementById('areaChart').getContext('2d');
+        const areasLabels = data.areas.map(a => a.academic_area);
+        const areasCounts = data.areas.map(a => a.count);
+
+        if (areaChart) areaChart.destroy();
+        areaChart = new Chart(areaCtx, {
+            type: 'bar',
+            data: {
+                labels: areasLabels,
+                datasets: [{
+                    label: 'Cantidad de Carreras',
+                    data: areasCounts,
+                    backgroundColor: 'rgba(70, 90, 120, 0.75)', // Steel blue
+                    borderColor: 'rgb(51, 65, 85)',
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // 2. Degree Chart
+        const degreeCtx = document.getElementById('degreeChart').getContext('2d');
+        const degreeLabels = data.degrees.map(d => d.degree_type);
+        const degreeCounts = data.degrees.map(d => d.count);
+
+        if (degreeChart) degreeChart.destroy();
+        degreeChart = new Chart(degreeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: degreeLabels,
+                datasets: [{
+                    data: degreeCounts,
+                    backgroundColor: [
+                        'rgba(51, 65, 85, 0.85)',   // Slate-700
+                        'rgba(71, 85, 105, 0.85)',  // Slate-600
+                        'rgba(100, 116, 139, 0.85)', // Slate-500
+                        'rgba(148, 163, 184, 0.85)', // Slate-400
+                        'rgba(203, 213, 225, 0.85)', // Slate-300
+                        'rgba(120, 120, 120, 0.85)'  // Gray
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12 } }
+                }
+            }
+        });
+
+        // 3. Word Chart
+        const wordCtx = document.getElementById('wordChart').getContext('2d');
+        const words = data.word_frequencies.map(w => w.word);
+        const freqs = data.word_frequencies.map(w => w.frequency);
+
+        if (wordChart) wordChart.destroy();
+        wordChart = new Chart(wordCtx, {
+            type: 'bar',
+            data: {
+                labels: words,
+                datasets: [{
+                    label: 'Frecuencia de término',
+                    data: freqs,
+                    backgroundColor: 'rgba(100, 116, 139, 0.75)', // Slate-500
+                    borderColor: 'rgb(71, 85, 105)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false }, ticks: { font: { size: 9 } } }
+                }
+            }
+        });
+    }
+
+    function renderErrors(errors) {
+        document.getElementById("error-badge-count").textContent = errors.length;
+        const tbody = document.querySelector("#error-table tbody");
+        if (errors.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" class="text-center text-slate-400 py-4">No se registran errores en las bases de datos.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = errors.map(err => {
+            const dateStr = new Date(err.attempted_at).toLocaleTimeString('es-ES') + ' ' + new Date(err.attempted_at).toLocaleDateString('es-ES', {month: 'numeric', day: 'numeric'});
+            return `
+                <tr>
+                    <td class="font-mono text-slate-500 whitespace-nowrap">${dateStr}</td>
+                    <td class="text-blue-600 truncate max-w-[250px]"><a href="${err.url}" target="_blank" class="hover:underline">${err.url}</a></td>
+                    <td class="text-rose-600 font-medium">${err.error_message}</td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    async function checkCrawlerStatus() {
+        try {
+            const response = await fetch("/api/crawler/status");
+            const data = await response.json();
+            
+            const form = document.getElementById("crawler-setup-form");
+            const active = document.getElementById("crawler-active-widget");
+            const term = document.getElementById("console-logs");
+            
+            if (data.is_running) {
+                // Show active widget
+                form.classList.add("hidden");
+                active.classList.remove("hidden");
+                
+                // Update live figures
+                document.getElementById("active-pages").textContent = data.pages_crawled;
+                document.getElementById("active-failed").textContent = data.pages_failed;
+                document.getElementById("active-url").textContent = data.current_url || "Iniciando...";
+                document.getElementById("active-msg").textContent = data.message;
+                
+                // Append log lines to terminal if pages crawled incremented
+                if (data.pages_crawled + data.pages_failed !== lastPagesCrawled) {
+                    lastPagesCrawled = data.pages_crawled + data.pages_failed;
+                    
+                    const timeStamp = new Date().toLocaleTimeString('es-ES');
+                    let logHTML = "";
+                    if (data.current_url) {
+                         logHTML += `<p><span class="text-emerald-600 font-bold">[OK]</span> <span class="text-slate-500">${timeStamp}</span> Visiting page: <span class="text-blue-700">${data.current_url}</span></p>`;
+                         logHTML += `<p><span class="text-emerald-600 font-bold">[OK]</span> <span class="text-slate-500">${timeStamp}</span> Internal links parsed & queued</p>`;
+                    }
+                    term.innerHTML += logHTML;
+                    term.scrollTop = term.scrollHeight;
+                }
+            } else {
+                // Show form
+                form.classList.remove("hidden");
+                active.classList.add("hidden");
+                
+                if (lastPagesCrawled !== -1) {
+                    // It just finished
+                    lastPagesCrawled = -1;
+                    term.innerHTML += `<p><span class="text-indigo-700 font-bold">[SYSTEM]</span> Rastro finalizado. Ejecutando pipeline y refrescando...</p>`;
+                    term.scrollTop = term.scrollHeight;
+                    // Refresh dashboard after a short delay
+                    setTimeout(() => {
+                        refreshDashboard();
+                    }, 2000);
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching crawler status:", e);
+        }
+    }
+
+    async function startCrawler() {
+        const seedUrl = document.getElementById("crawler-seed").value;
+        const maxPages = document.getElementById("crawler-max-pages").value;
+        const maxDepth = document.getElementById("crawler-max-depth").value;
+        
+        if (!seedUrl) {
+            alert("Debes proporcionar una URL semilla.");
+            return;
+        }
+
+        const term = document.getElementById("console-logs");
+        term.innerHTML = `<p class="text-indigo-700 font-bold">[SYSTEM] Iniciando rastreador BFS con semilla: ${seedUrl}</p>`;
+        
+        try {
+            const response = await fetch(`/api/crawler/start?seed_url=${encodeURIComponent(seedUrl)}&max_pages=${maxPages}&max_depth=${maxDepth}`, {
+                method: "POST"
+            });
+            const res = await response.json();
+            
+            if (res.status === "success") {
+                checkCrawlerStatus();
+            } else {
+                alert(res.message);
+            }
+        } catch (e) {
+            console.error("Error starting crawler:", e);
+            alert("Ocurrió un error al arrancar el rastreador.");
+        }
+    }
+
+    async function stopCrawler() {
+        try {
+            const response = await fetch("/api/crawler/stop", { method: "POST" });
+            const data = await response.json();
+            if (data.status === "success") {
+                const term = document.getElementById("console-logs");
+                term.innerHTML += `<p class="text-amber-700 font-bold">[WARN] Solicitud de parada enviada...</p>`;
+                term.scrollTop = term.scrollHeight;
+            } else {
+                alert(data.message);
+            }
+        } catch (e) {
+            console.error("Error stopping crawler:", e);
+        }
+    }
+
+    async function runPipeline() {
+        const button = event.target;
+        button.disabled = true;
+        button.innerHTML = `<i class="fa-solid fa-spinner animate-spin mr-1"></i> Procesando...`;
+        
+        try {
+            const response = await fetch("/api/pipeline/run", { method: "POST" });
+            const data = await response.json();
+            if (data.status === "success") {
+                await refreshDashboard();
+                alert("¡El pipeline analítico de Medallion y Pandas se ejecutó con éxito!");
+            } else {
+                alert(data.message);
+            }
+        } catch (e) {
+            console.error("Error executing pipeline:", e);
+            alert("Error al ejecutar el pipeline.");
+        } finally {
+            button.disabled = false;
+            button.innerHTML = `<i class="fa-solid fa-rotate mr-1"></i> Forzar Pipeline Analítico`;
+        }
+    }
+
+    async function clearAllData() {
+        if (!confirm("¿Estás seguro de que deseas limpiar todas las bases de datos (Bronze, Silver y Gold)? Esta acción no se puede deshacer y borrará todo el historial.")) {
+            return;
+        }
+        
+        try {
+            const response = await fetch("/api/data/clear", { method: "POST" });
+            const data = await response.json();
+            if (data.status === "success") {
+                const term = document.getElementById("console-logs");
+                term.innerHTML = `<p class="text-rose-600 font-bold">[SYSTEM] Todas las bases de datos fueron vaciadas con éxito.</p>`;
+                term.scrollTop = term.scrollHeight;
+                await refreshDashboard();
+                alert("Todas las bases de datos fueron vaciadas con éxito.");
+            } else {
+                alert(data.message);
+            }
+        } catch (e) {
+            console.error("Error clearing data:", e);
+            alert("Error al limpiar los datos.");
+        }
+    }
+</script>
+{% endblock %}

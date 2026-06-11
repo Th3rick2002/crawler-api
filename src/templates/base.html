@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="corporate">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Crawler & Analytics</title>
+    <!-- Tailwind CSS & daisyUI v4 CDNs -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#334155", // Slate-700 (Enterprise neutral primary)
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-base-200 min-h-screen text-base-content antialiased">
+
+    <!-- Responsive Drawer System -->
+    <div class="drawer lg:drawer-open">
+        <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
+        
+        <!-- Main Content Wrapper -->
+        <div class="drawer-content flex flex-col min-h-screen">
+            
+            <!-- Navbar (Mobile Toggle & Branding) -->
+            <div class="navbar bg-base-100 shadow-sm border-b border-base-300 px-4 lg:px-6 py-3">
+                <div class="flex-none lg:hidden">
+                    <label for="sidebar-drawer" class="btn btn-square btn-ghost drawer-button">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </label>
+                </div>
+                <div class="flex-1 px-2 mx-2">
+                    <span class="text-lg font-bold tracking-tight text-slate-800 lg:hidden">
+                        <i class="fa-solid fa-graduation-cap mr-2"></i>Academic Crawler
+                    </span>
+                    <span class="text-sm text-slate-500 hidden lg:inline-block">
+                        <i class="fa-regular fa-calendar-alt mr-1"></i> <span id="current-date">Cargando fecha...</span>
+                    </span>
+                </div>
+                <!-- Crawler status quick badge in navbar -->
+                <div class="flex-none gap-2">
+                    <div id="nav-crawler-badge" class="badge badge-ghost gap-1 px-3 py-3 font-semibold text-xs">
+                        <span class="relative flex h-2 w-2">
+                            <span id="nav-badge-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+                            <span id="nav-badge-dot" class="relative inline-flex rounded-full h-2 w-2 bg-slate-500"></span>
+                        </span>
+                        <span id="nav-badge-text">Rastreador: Apagado</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Page Specific Content -->
+            <main class="flex-1 p-4 lg:p-8 max-w-[1600px] w-full mx-auto">
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Global Footer -->
+            <footer class="footer footer-center p-4 bg-base-100 text-base-content border-t border-base-300">
+                <aside>
+                    <p class="text-xs text-slate-500">
+                        &copy; 2026 - Universidad Career Web Crawler & Analytics. Desarrollado con FastAPI, Pandas y SQLite.
+                    </p>
+                </aside>
+            </footer>
+        </div>
+
+        <!-- Sidebar Navigation Drawer -->
+        <div class="drawer-side z-20">
+            <label for="sidebar-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+            <div class="menu p-4 w-80 min-h-screen bg-base-100 text-slate-700 border-r border-base-300 flex flex-col justify-between">
+                
+                <!-- Logo & Brand Header -->
+                <div>
+                    <div class="flex items-center gap-3 px-4 py-6 border-b border-base-200">
+                        <div class="bg-slate-700 text-white p-2.5 rounded-xl shadow-sm">
+                            <i class="fa-solid fa-graduation-cap text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="font-extrabold text-lg tracking-wider text-slate-800">CAREER CRAWLER</h1>
+                            <p class="text-[10px] text-slate-500 font-semibold tracking-widest uppercase">Medallion Analytics</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Menu Links -->
+                    <ul class="space-y-1.5 mt-8 font-medium">
+                        <li>
+                            <a href="/" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-base-200 hover:text-slate-800 {% if request.url.path == '/' %}bg-slate-700 text-white shadow-sm hover:bg-slate-800 hover:text-white{% endif %}">
+                                <i class="fa-solid fa-chart-pie text-lg"></i>
+                                <span>Panel de Control</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/explore" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-base-200 hover:text-slate-800 {% if request.url.path == '/explore' %}bg-slate-700 text-white shadow-sm hover:bg-slate-800 hover:text-white{% endif %}">
+                                <i class="fa-solid fa-magnifying-glass text-lg"></i>
+                                <span>Explorador de Datos</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- System State / Quick Trigger Card -->
+                <div class="bg-base-200 p-4 rounded-2xl border border-base-300">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="badge badge-xs bg-slate-500 border-none"></div>
+                        <span class="text-xs font-semibold text-slate-700">Base de Datos</span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[11px] text-slate-600">
+                            <span>Bronze:</span>
+                            <span class="font-mono text-slate-800 font-medium">1_bronze_raw.db</span>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-600">
+                            <span>Silver:</span>
+                            <span class="font-mono text-slate-800 font-medium">2_silver_analytics.db</span>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-600">
+                            <span>Gold:</span>
+                            <span class="font-mono text-slate-900 font-extrabold">3_gold_delivery.db</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Date and Global Status Update Script -->
+    <script>
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('es-ES', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        // Function to update the global crawler status badge in the navbar
+        async function updateGlobalBadge() {
+            try {
+                const response = await fetch('/api/crawler/status');
+                const data = await response.json();
+                const badge = document.getElementById('nav-crawler-badge');
+                const ping = document.getElementById('nav-badge-ping');
+                const dot = document.getElementById('nav-badge-dot');
+                const text = document.getElementById('nav-badge-text');
+
+                if (data.is_running) {
+                    badge.className = "badge badge-info gap-1 px-3 py-3 font-semibold text-xs text-info-content";
+                    ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75";
+                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-sky-500";
+                    text.textContent = `Rastreando (${data.pages_crawled} pág)`;
+                } else {
+                    badge.className = "badge badge-ghost gap-1 px-3 py-3 font-semibold text-xs";
+                    ping.className = "hidden";
+                    dot.className = "relative inline-flex rounded-full h-2 w-2 bg-slate-500";
+                    text.textContent = "Rastreador: Apagado";
+                }
+            } catch (err) {
+                console.error("Error updating global badge:", err);
+            }
+        }
+
+        // Poll every 3 seconds
+        setInterval(updateGlobalBadge, 3000);
+        updateGlobalBadge();
+    </script>
+</body>
+</html>
