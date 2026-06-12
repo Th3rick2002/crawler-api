@@ -131,6 +131,11 @@ def generate_pdf_report(degree_type: str = "", academic_area: str = "", search_q
             pdf.multi_cell(0, 5, desc_safe)
             
             # URL
+            pdf.set_x(15)
+            pdf.set_font("helvetica", "B", 8.5)
+            pdf.set_text_color(100, 116, 139) # Slate-500
+            pdf.write(5, "Enlace: ")
+            
             pdf.set_font("helvetica", "U", 8.5)
             pdf.set_text_color(37, 99, 235) # Blue-600
             # Truncar el texto visible de la URL para evitar desbordamientos o colapso de diseño
