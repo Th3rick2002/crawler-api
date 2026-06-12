@@ -61,6 +61,11 @@ def extract_metadata_from_html(html_content: str, url: str) -> tuple[str, str]:
     """Extracts a clean title and semantic text description from raw HTML."""
     soup = BeautifulSoup(html_content, "html.parser")
     
+    # Destruir etiquetas ruidosas antes de procesar el texto
+    for noise_tag in ('nav', 'footer', 'header', 'aside', 'script', 'style'):
+        for element in soup.find_all(noise_tag):
+            element.decompose()
+            
     # Extract Title
     title = ""
     # Try <h1> first (usually contains the career name)
@@ -87,8 +92,18 @@ def extract_metadata_from_html(html_content: str, url: str) -> tuple[str, str]:
         else:
             title = "Página sin título"
             
+    # Extraer texto solo de contenedores principales si existen
+    main_element = None
+    for selector in ("main", "article", "div.main", "div.content", "div.contenido"):
+        main_element = soup.find(selector)
+        if main_element:
+            break
+            
+    if not main_element:
+        main_element = soup
+        
     # Extract description text (cleaned of tags)
-    description = soup.get_text(separator=" ", strip=True)
+    description = main_element.get_text(separator=" ", strip=True)
     # Compress multiple spaces
     description = re.sub(r"\s+", " ", description)
     
@@ -148,7 +163,6 @@ def run_analytics_pipeline() -> None:
     df_raw = pd.DataFrame(raw_pages)
     
     processed_records = []
-    all_words = []
     
     # 2. Extract title, clean description, and infer filters for each page
     for idx, row in df_raw.iterrows():
@@ -177,11 +191,6 @@ def run_analytics_pipeline() -> None:
             "description": description,
             "extracted_at": datetime.utcnow().isoformat()
         })
-        
-        # NLP Tokenization & Cleaning for Word Frequency
-        clean_text = clean_text_for_nlp(title + " " + description)
-        words = [w for w in clean_text.split() if w not in SPANISH_STOPWORDS and len(w) >= 3]
-        all_words.extend(words)
 
     if not processed_records:
         print("[ANALYTICS] No career profiles could be extracted from pages. Aborting.")
@@ -190,13 +199,38 @@ def run_analytics_pipeline() -> None:
     # Convert processed records to Pandas DataFrame
     df_processed = pd.DataFrame(processed_records)
     
+    # Aplicar filtros de refinamiento usando Pandas (Vectorial)
+    # a. Filtro de Plantillas: Elimina las filas donde la descripción contenga frases como "Lorem ipsum" u "odio dignissimos" (case-insensitive)
+    df_processed = df_processed[~df_processed["description"].str.contains(r"lorem ipsum|odio dignissimos", case=False, na=False)]
+    
+    # b. Filtro de Longitud de Título: Elimina títulos con más de 10 palabras (métrica temporal)
+    df_processed = df_processed[df_processed["title"].str.split().str.len() <= 10]
+    
+    # c. Filtro de Prefijo Académico: Asegurar que el título contenga al menos una palabra clave académica al inicio mediante Regex
+    academic_regex = r"^(?:Ingeniería|Licenciatura|Técnico|Maestría|Doctorado|Profesorado)"
+    df_processed = df_processed[df_processed["title"].str.contains(academic_regex, case=False, na=False, regex=True)]
+    
+    if df_processed.empty:
+        print("[ANALYTICS] No career profiles remained after applying Pandas filters. Aborting.")
+        return
+        
+    # NLP Tokenization & Cleaning for Word Frequency based on filtered careers
+    all_words = []
+    for idx, row in df_processed.iterrows():
+        clean_text = clean_text_for_nlp(row["title"] + " " + row["description"])
+        words = [w for w in clean_text.split() if w not in SPANISH_STOPWORDS and len(w) >= 3]
+        all_words.extend(words)
+        
     # 3. Calculate metrics using Pandas value_counts()
     degree_counts = df_processed["degree_type"].value_counts().to_dict()
     area_counts = df_processed["academic_area"].value_counts().to_dict()
     
     # Calculate word frequency counts
-    word_series = pd.Series(all_words)
-    word_freqs = word_series.value_counts().head(100).to_dict()  # top 100 words
+    if all_words:
+        word_series = pd.Series(all_words)
+        word_freqs = word_series.value_counts().head(100).to_dict()  # top 100 words
+    else:
+        word_freqs = {}
     
     # Save computed metrics to Silver DB
     save_degree_counts(degree_counts)

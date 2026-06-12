@@ -131,9 +131,14 @@ def crawl_website(
             html_text = response.text
             soup = BeautifulSoup(html_text, "html.parser")
             
-            # Find the main semantic content
+            # Destruir etiquetas ruidosas usando .decompose() antes de extraer el texto o elementos
+            for noise_tag in ("nav", "footer", "header", "aside", "script", "style", "form", "iframe"):
+                for element in soup.find_all(noise_tag):
+                    element.decompose()
+            
+            # Extraer contenido de los contenedores principales
             main_element = None
-            for selector in ("main", "article", "#content", ".content", "#main", ".main"):
+            for selector in ("main", "article", "div.main", "div.content", "div.contenido"):
                 main_element = soup.find(selector)
                 if main_element:
                     break
@@ -143,12 +148,6 @@ def crawl_website(
                 
             if not main_element:
                 main_element = soup  # Fallback to full document if no body is found
-                
-            # Create a clone/copy or clean in place the main content to avoid header/footer/sidebars
-            # We remove elements that are noisy
-            for noise_tag in ("header", "footer", "nav", "aside", "script", "style", "form", "iframe"):
-                for element in main_element.find_all(noise_tag):
-                    element.decompose()
             
             # Clean semantic content HTML representation
             semantic_html = str(main_element)

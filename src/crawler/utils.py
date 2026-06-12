@@ -18,6 +18,13 @@ IGNORED_EXTENSIONS = (
     ".css", ".js", ".json", ".xml", ".csv"
 )
 
+# Lista negra de patrones de URL a bloquear
+URL_BLACKLIST = [
+    '/noticia/', '/noticias/', '/blog/', '/evento/', '/eventos/',
+    '/calendario/', '/contacto/', '/about/', '/servicios/', '/category/', '/tag/'
+]
+
+
 def get_random_user_agent() -> str:
     """Returns a random User-Agent string from the list."""
     return random.choice(USER_AGENTS)
@@ -75,6 +82,11 @@ def is_valid_internal_url(url: str, base_domains) -> bool:
         if not matched:
             return False
         
+        # Filtrar por lista negra de patrones en la URL
+        url_lower = url.lower()
+        if any(pattern in url_lower for pattern in URL_BLACKLIST):
+            return False
+
         # Check file extension
         path = parsed.path.lower()
         if path.endswith(IGNORED_EXTENSIONS):
