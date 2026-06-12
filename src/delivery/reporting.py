@@ -133,7 +133,11 @@ def generate_pdf_report(degree_type: str = "", academic_area: str = "", search_q
             # URL
             pdf.set_font("helvetica", "U", 8.5)
             pdf.set_text_color(37, 99, 235) # Blue-600
-            url_safe = item['url'].encode('latin-1', 'replace').decode('latin-1')
+            # Truncar el texto visible de la URL para evitar desbordamientos o colapso de diseño
+            display_url = item['url']
+            if len(display_url) > 90:
+                display_url = display_url[:87] + "..."
+            url_safe = display_url.encode('latin-1', 'replace').decode('latin-1')
             pdf.cell(0, 5, url_safe, ln=True, link=item['url'])
             
             pdf.ln(4)

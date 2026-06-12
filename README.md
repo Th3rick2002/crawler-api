@@ -15,6 +15,19 @@ El **University Career Web Crawler & Analytics System** realiza las siguientes t
 
 ---
 
+## 🧹 Filtros de Refinamiento y Control de Ruido
+
+Para garantizar que solo la oferta académica legítima llegue al nivel **Gold DB**, el sistema implementa tres niveles de filtros estrictos:
+
+1. **Filtro de URLs (Lista Negra Estricta):** Bloquea de forma proactiva rutas no deseadas que no corresponden a programas de estudio, tales como `['/noticia/', '/noticias/', '/blog/', '/evento/', '/eventos/', '/calendario/', '/contacto/', '/about/', '/servicios/', '/category/', '/tag/']`.
+2. **Limpieza Avanzada de HTML (BeautifulSoup):** Antes de procesar el texto, destruye las etiquetas de ruido estructural (`nav`, `footer`, `header`, `aside`, `script`, `style`, `form`, `iframe`) y extrae el texto únicamente de los contenedores semánticos principales (`<main>`, `<article>`, o divs con clase `main`, `content`, `contenido`).
+3. **Filtros Vectoriales en Pandas (Pipeline de Silver/Gold):**
+   * **Filtro de Plantillas (Lorem Ipsum):** Elimina registros cuyas descripciones contengan textos de plantilla o relleno como `"Lorem ipsum"` u `"odio dignissimos"`.
+   * **Filtro de Longitud de Título:** Elimina registros cuyo título contenga más de 10 palabras (típico de artículos de noticias y blogs).
+   * **Filtro de Prefijo Académico (Regex):** Asegura que el título comience obligatoriamente con un prefijo de grado/título académico válido: `^(?:Ingeniería|Licenciatura|Técnico|Maestría|Doctorado|Profesorado)`.
+
+---
+
 ## 🛠️ Arquitectura Medallion (SQLite)
 
 El sistema aísla sus cargas de trabajo y etapas de procesamiento utilizando tres bases de datos SQLite independientes almacenadas en la carpeta `data/`:

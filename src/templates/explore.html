@@ -134,8 +134,12 @@
                                     </td>
                                     <td class="text-right">
                                         <button 
-                                            onclick="openCareerModal({{ career.title|tojson }}, {{ career.degree_type|tojson }}, {{ career.academic_area|tojson }}, {{ career.url|tojson }}, {{ career.description|tojson }})"
-                                            class="btn btn-ghost btn-square btn-sm text-slate-600 hover:bg-slate-100 rounded-lg">
+                                            class="btn btn-ghost btn-square btn-sm text-slate-600 hover:bg-slate-100 rounded-lg view-details-btn"
+                                            data-title="{{ career.title }}"
+                                            data-degree="{{ career.degree_type }}"
+                                            data-area="{{ career.academic_area }}"
+                                            data-url="{{ career.url }}"
+                                            data-description="{{ career.description }}">
                                             <i class="fa-solid fa-eye"></i>
                                         </button>
                                     </td>
@@ -221,5 +225,19 @@
         // Show modal
         document.getElementById("career_details_modal").showModal();
     }
+
+    // Registrar manejadores de eventos tras la carga del DOM para evitar problemas de escape de comillas
+    document.addEventListener("DOMContentLoaded", function() {
+        document.querySelectorAll(".view-details-btn").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                const title = this.getAttribute("data-title");
+                const degree = this.getAttribute("data-degree");
+                const area = this.getAttribute("data-area");
+                const url = this.getAttribute("data-url");
+                const description = this.getAttribute("data-description");
+                openCareerModal(title, degree, area, url, description);
+            });
+        });
+    });
 </script>
 {% endblock %}
