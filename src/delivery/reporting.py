@@ -143,4 +143,4 @@ def generate_pdf_report(degree_type: str = "", academic_area: str = "", search_q
             pdf.line(15, pdf.get_y(), 195, pdf.get_y())
             pdf.ln(3)
 
-    return pdf.output()
+    return bytes(pdf.output())
